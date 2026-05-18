@@ -707,6 +707,8 @@ textarea { resize: vertical; }
 .task-check.reminder { border-color: var(--reminder); color: var(--reminder); }
 
 .task-text { flex: 1; font-size: 14px; }
+.task-text.task-nav { cursor: pointer; }
+.task-text.task-nav:hover { color: var(--accent); }
 
 .task-delete {
   font-size: 16px; color: var(--text-muted);

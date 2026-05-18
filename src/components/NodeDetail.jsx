@@ -156,16 +156,18 @@ export default function NodeDetail({ node, onNavigate, onBack, onNodeUpdated }) 
                   <button className="task-check reminder" onClick={() => handleToggleTask(t)}>
                     {t.done ? '✓' : '○'}
                   </button>
-                  <span className="task-text">{t.title}</span>
+                  <span className="task-text task-nav" onClick={() => onNavigate(t)}>{t.title}</span>
                   <span className="reminder-badge">长期</span>
                   <button className="task-delete" onClick={() => handleDeleteChild(t.id)}>×</button>
+                  <span className="child-chevron" onClick={() => onNavigate(t)}>›</span>
                 </div>
               ))}
               {pendingTasks.map(t => (
                 <div key={t.id} className="task-row">
                   <button className="task-check" onClick={() => handleToggleTask(t)}>○</button>
-                  <span className="task-text">{t.title}</span>
+                  <span className="task-text task-nav" onClick={() => onNavigate(t)}>{t.title}</span>
                   <button className="task-delete" onClick={() => handleDeleteChild(t.id)}>×</button>
+                  <span className="child-chevron" onClick={() => onNavigate(t)}>›</span>
                 </div>
               ))}
               {doneTasks.length > 0 && (
@@ -174,8 +176,9 @@ export default function NodeDetail({ node, onNavigate, onBack, onNodeUpdated }) 
                   {doneTasks.map(t => (
                     <div key={t.id} className="task-row done">
                       <button className="task-check done" onClick={() => handleToggleTask(t)}>✓</button>
-                      <span className="task-text">{t.title}</span>
+                      <span className="task-text task-nav" onClick={() => onNavigate(t)}>{t.title}</span>
                       <button className="task-delete" onClick={() => handleDeleteChild(t.id)}>×</button>
+                      <span className="child-chevron" onClick={() => onNavigate(t)}>›</span>
                     </div>
                   ))}
                 </details>
