@@ -14,186 +14,152 @@ export async function signOut() {
   await supabase.auth.signOut()
 }
 
-export async function getSession() {
-  const { data } = await supabase.auth.getSession()
-  return data.session
-}
+// ---- Nodes ----
 
-// ---- Areas ----
-
-export async function getAreas() {
+// 获取顶层节点（areas）
+export async function getRootNodes() {
   const { data, error } = await supabase
-    .from('areas')
-    .select('*, tasks(*)')
-    .order('sort_order', { ascending: true })
-    .order('created_at', { referencedTable: 'tasks', ascending: true })
-  if (error) throw error
-  return data
-}
-
-export async function createArea(name, expectation) {
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data, error } = await supabase
-    .from('areas')
-    .insert({ name, expectation, user_id: user.id })
-    .select('*, tasks(*)')
-    .single()
-  if (error) throw error
-  return data
-}
-
-export async function updateExpectation(areaId, expectation) {
-  const { error } = await supabase
-    .from('areas')
-    .update({ expectation })
-    .eq('id', areaId)
-  if (error) throw error
-}
-
-// ---- Tasks ----
-
-export async function addTask(areaId, text, isReminder = false) {
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data, error } = await supabase
-    .from('tasks')
-    .insert({ area_id: areaId, text, is_reminder: isReminder, user_id: user.id })
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export async function toggleTask(taskId, done) {
-  const { error } = await supabase
-    .from('tasks')
-    .update({ done })
-    .eq('id', taskId)
-  if (error) throw error
-}
-
-export async function deleteTask(taskId) {
-  const { error } = await supabase
-    .from('tasks')
-    .delete()
-    .eq('id', taskId)
-  if (error) throw error
-}
-
-// ---- Status Logs ----
-
-export async function getLogs() {
-  const { data, error } = await supabase
-    .from('status_logs')
+    .from('nodes')
     .select('*')
-    .order('created_at', { ascending: false })
-    .limit(50)
+    .is('parent_id', null)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
   if (error) throw error
   return data
 }
 
-export async function addLog(mood, currentTask, distraction, note) {
+// 获取某节点的直接子节点
+export async function getChildren(parentId) {
+  const { data, error } = await supabase
+    .from('nodes')
+    .select('*')
+    .eq('parent_id', parentId)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+// 获取单个节点
+export async function getNode(id) {
+  const { data, error } = await supabase
+    .from('nodes')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+// 创建节点
+export async function createNode({ parentId = null, type, title, expectation = '', content = '' }) {
   const { data: { user } } = await supabase.auth.getUser()
   const { data, error } = await supabase
-    .from('status_logs')
-    .insert({ mood, current_task: currentTask, distraction, note, user_id: user.id })
+    .from('nodes')
+    .insert({
+      user_id: user.id,
+      parent_id: parentId,
+      type,
+      title,
+      expectation,
+      content,
+    })
     .select()
     .single()
   if (error) throw error
   return data
 }
 
-export async function deleteLog(id) {
+// 更新节点
+export async function updateNode(id, fields) {
   const { error } = await supabase
-    .from('status_logs')
+    .from('nodes')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+// 删除节点（子节点级联删除）
+export async function deleteNode(id) {
+  const { error } = await supabase
+    .from('nodes')
     .delete()
     .eq('id', id)
   if (error) throw error
 }
 
-// ---- 初始化默认数据（首次登录时调用）----
+// ---- Journal Entries ----
 
-export async function seedDefaultAreas() {
-  const existing = await getAreas()
-  if (existing.length > 0) return // 已有数据，不重复插入
+// 获取某天的日志
+export async function getJournalByDate(date) {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('*, nodes(id, title, type)')
+    .eq('entry_date', date)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data
+}
 
-  const defaults = [
-    {
-      name: '院赛',
-      expectation: '我想把比赛办好，提振足球氛围',
-      tasks: [
-        { text: '场地申请', is_reminder: false },
-        { text: '赛程安排', is_reminder: false },
-        { text: '裁判安排', is_reminder: false },
-        { text: '到场', is_reminder: false },
-        { text: '数据统计', is_reminder: false },
-        { text: '奖品准备（5.17前）', is_reminder: true },
-      ],
-    },
-    {
-      name: '青训',
-      expectation: '设计出好的训练，每节课有质量的训练',
-      tasks: [
-        { text: '训练课总结', is_reminder: false },
-        { text: '教案设计（带着训练预期目标）', is_reminder: false },
-        { text: '与 Borja 的学习——让感受带着我体验', is_reminder: false },
-        { text: '拳导的视频', is_reminder: false },
-      ],
-    },
-    {
-      name: '华海超',
-      expectation: '大一大二可以好好操练，练出基本的后场建立和前场立体进攻配合',
-      tasks: [
-        { text: '赛程通知', is_reminder: false },
-        { text: '统计到场人数', is_reminder: false },
-        { text: '每场战术分析调整', is_reminder: false },
-        { text: '录像', is_reminder: false },
-        { text: '视频分析 workflow', is_reminder: false },
-      ],
-    },
-    {
-      name: '小猫的生日',
-      expectation: '很多有意思的礼物！我想好好准备它们',
-      tasks: [
-        { text: '球服——画出那只小猫 + 下单', is_reminder: false },
-        { text: '信——分享最近感受，狗狗对小猫的刻画', is_reminder: false },
-        { text: 'Guitar——学会 Wonderful Tonight', is_reminder: false },
-        { text: '一幅画——狗狗 signature 画', is_reminder: false },
-        { text: '生日游戏设计开发', is_reminder: false },
-      ],
-    },
-    {
-      name: '课程',
-      expectation: '别挂科，重要课想学点东西',
-      tasks: [
-        { text: '素描课找老师补', is_reminder: false },
-        { text: '实验课找老师补', is_reminder: false },
-        { text: '思政补笔记', is_reminder: false },
-        { text: '高数补作业', is_reminder: false },
-        { text: '电路补作业', is_reminder: false },
-        { text: '大物', is_reminder: false },
-        { text: '英语积累', is_reminder: false },
-      ],
-    },
-  ]
+// 获取有日志的日期列表（最近 60 天）
+export async function getJournalDates() {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('entry_date')
+    .order('entry_date', { ascending: false })
+    .limit(200)
+  if (error) throw error
+  // 去重
+  const dates = [...new Set(data.map(r => r.entry_date))]
+  return dates
+}
 
+// 获取某个节点下的日志
+export async function getJournalByNode(nodeId) {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('node_id', nodeId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+// 新增日志
+export async function addJournalEntry({ nodeId = null, mood = null, currentTask = '', distraction = '', content = '', entryDate = null }) {
   const { data: { user } } = await supabase.auth.getUser()
+  const today = new Date().toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .insert({
+      user_id: user.id,
+      node_id: nodeId,
+      mood,
+      current_task: currentTask,
+      distraction,
+      content,
+      entry_date: entryDate || today,
+    })
+    .select('*, nodes(id, title, type)')
+    .single()
+  if (error) throw error
+  return data
+}
 
-  for (let i = 0; i < defaults.length; i++) {
-    const { name, expectation, tasks } = defaults[i]
-    const { data: area, error } = await supabase
-      .from('areas')
-      .insert({ name, expectation, sort_order: i, user_id: user.id })
-      .select()
-      .single()
-    if (error) continue
+// 更新日志
+export async function updateJournalEntry(id, fields) {
+  const { error } = await supabase
+    .from('journal_entries')
+    .update(fields)
+    .eq('id', id)
+  if (error) throw error
+}
 
-    for (const t of tasks) {
-      await supabase.from('tasks').insert({
-        area_id: area.id,
-        text: t.text,
-        is_reminder: t.is_reminder,
-        user_id: user.id,
-      })
-    }
-  }
+// 删除日志
+export async function deleteJournalEntry(id) {
+  const { error } = await supabase
+    .from('journal_entries')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
 }
