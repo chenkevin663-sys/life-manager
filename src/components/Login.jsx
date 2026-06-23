@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { signInWithEmail } from '../lib/storage'
+import { signInWithEmail, signInWithPassword } from '../lib/storage'
 
 export default function Login() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode] = useState('magic') // 'magic' | 'password'
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -12,12 +14,15 @@ export default function Login() {
     if (!email.trim()) return
     setLoading(true)
     setError('')
-    const { error } = await signInWithEmail(email.trim())
-    setLoading(false)
-    if (error) {
-      setError(error.message)
+    if (mode === 'magic') {
+      const { error } = await signInWithEmail(email.trim())
+      setLoading(false)
+      if (error) setError(error.message)
+      else setSent(true)
     } else {
-      setSent(true)
+      const { error } = await signInWithPassword(email.trim(), password)
+      setLoading(false)
+      if (error) setError(error.message)
     }
   }
 
@@ -44,9 +49,25 @@ export default function Login() {
               required
               autoFocus
             />
+            {mode === 'password' && (
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="密码"
+                required
+              />
+            )}
             {error && <p className="login-error">{error}</p>}
             <button type="submit" className="btn-primary full-width" disabled={loading}>
-              {loading ? '发送中...' : '发送登录链接'}
+              {loading ? '登录中...' : mode === 'magic' ? '发送登录链接' : '登录'}
+            </button>
+            <button
+              type="button"
+              style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}
+              onClick={() => { setMode(mode === 'magic' ? 'password' : 'magic'); setError('') }}
+            >
+              {mode === 'magic' ? '用密码登录' : '用邮件链接登录'}
             </button>
           </form>
         )}

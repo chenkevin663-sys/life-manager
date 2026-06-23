@@ -14,6 +14,16 @@ export async function signOut() {
   await supabase.auth.signOut()
 }
 
+export async function signInWithPassword(email, password) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  return { error }
+}
+
+export async function updatePassword(password) {
+  const { error } = await supabase.auth.updateUser({ password })
+  return { error }
+}
+
 // ---- Nodes ----
 
 // 获取顶层节点（areas）
